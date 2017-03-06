@@ -366,6 +366,12 @@ public class GenerateMojo extends AbstractMojo {
     @Parameter(defaultValue = "${project.build.directory}", readonly = true, required = true)
     private String projectBuildDirectory;
 
+    /**
+     * Add default constructor to classes. Only applicable if mapClasses= "asClasses"
+     */
+    @Parameter(defaultValue = "false")
+    private boolean addConstructor;
+
     @Override
     public void execute() {
         try {
@@ -422,6 +428,7 @@ public class GenerateMojo extends AbstractMojo {
             settings.displaySerializerWarning = displaySerializerWarning;
             settings.disableJackson2ModuleDiscovery = disableJackson2ModuleDiscovery;
             settings.classLoader = classLoader;
+            settings.addConstructor = addConstructor;
             final File output = outputFile != null
                     ? outputFile
                     : new File(new File(projectBuildDirectory, "typescript-generator"), project.getArtifactId() + settings.getExtension());

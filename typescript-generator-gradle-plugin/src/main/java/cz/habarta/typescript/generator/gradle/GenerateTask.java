@@ -57,6 +57,7 @@ public class GenerateTask extends DefaultTask {
     public StringQuotes stringQuotes;
     public boolean displaySerializerWarning = true;
     public boolean disableJackson2ModuleDiscovery;
+    public boolean addConstructor;
 
     @TaskAction
     public void generate() throws Exception {
@@ -129,6 +130,7 @@ public class GenerateTask extends DefaultTask {
                 ? getProject().file(outputFile)
                 : new File(new File(getProject().getBuildDir(), "typescript-generator"), getProject().getName() + settings.getExtension());
         settings.validateFileName(output);
+        settings.addConstructor = addConstructor;
 
         // TypeScriptGenerator
         new TypeScriptGenerator(settings).generateTypeScript(

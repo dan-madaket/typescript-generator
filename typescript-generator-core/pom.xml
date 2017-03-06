@@ -5,7 +5,7 @@
     <parent>
         <groupId>cz.habarta.typescript-generator</groupId>
         <artifactId>typescript-generator</artifactId>
-        <version>1.17-SNAPSHOT</version>
+        <version>1.18-MADAKET</version>
     </parent>
 
     <artifactId>typescript-generator-core</artifactId>
@@ -43,6 +43,25 @@
             <artifactId>fast-classpath-scanner</artifactId>
             <version>1.9.19</version>
         </dependency>
+
+        <dependency>
+            <groupId>com.madakethealth.cred</groupId>
+            <artifactId>mh-cred-services</artifactId>
+            <version>1.0</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-collections4</artifactId>
+            <version>4.0</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.madakethealth.cred</groupId>
+            <artifactId>mh-cred-services</artifactId>
+            <version>1.0</version>
+        </dependency>
+
         <!--test dependencies-->
         <dependency>
             <groupId>junit</groupId>
@@ -61,13 +80,13 @@
             <artifactId>jersey-media-json-jackson</artifactId>
             <version>${jersey.version}</version>
             <scope>test</scope>
-        </dependency>        
+        </dependency>
         <dependency>
             <groupId>org.glassfish.jersey.containers</groupId>
             <artifactId>jersey-container-jdk-http</artifactId>
             <version>${jersey.version}</version>
             <scope>test</scope>
-        </dependency>        
+        </dependency>
     </dependencies>
 
     <build>

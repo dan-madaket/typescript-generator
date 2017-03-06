@@ -1,11 +1,16 @@
 
 package cz.habarta.typescript.generator.emitter;
 
+import org.apache.commons.lang3.StringUtils;
 import cz.habarta.typescript.generator.*;
 import cz.habarta.typescript.generator.compiler.EnumKind;
 import cz.habarta.typescript.generator.compiler.EnumMemberModel;
 import cz.habarta.typescript.generator.util.Utils;
+
+import com.madakethealth.cred.support.MadaketResource;
+import javax.ws.rs.Path;
 import java.io.*;
+import java.lang.reflect.Modifier;
 import java.text.*;
 import java.util.*;
 
@@ -103,6 +108,7 @@ public class Emitter {
 
     private void emitElements(TsModel model, boolean exportKeyword, boolean declareKeyword) {
         exportKeyword = exportKeyword || forceExportKeyword;
+        emitMadaketResource();
         emitBeans(model, exportKeyword);
         emitTypeAliases(model, exportKeyword);
         emitNumberEnums(model, exportKeyword, declareKeyword);
@@ -116,17 +122,37 @@ public class Emitter {
         }
     }
 
+    private void emitMadaketResource() {
+        writeNewLine();
+        writeIndentedLine("export interface " + MadaketResource.class.getSimpleName() + " {");
+        indent++;
+        writeIndentedLine("id: string;");
+        writeIndentedLine("getResourceEndpoint(): string;");
+        indent--;
+        writeIndentedLine("}");
+    }
+
     private void emitBeans(TsModel model, boolean exportKeyword) {
         for (TsBeanModel bean : model.getBeans()) {
             writeNewLine();
             emitComments(bean.getComments());
+
+            List<String> implementsList = new ArrayList<String>();
+            for(TsType implementEntry: bean.getImplementsList()) {
+                implementsList.add(implementEntry + "");
+            }
+            if(bean.getOrigin() != null && bean.getOrigin().isAnnotationPresent(MadaketResource.class)) {
+                implementsList.add(MadaketResource.class.getSimpleName());
+            }
+
+            final String abstractModifier = (bean.getOrigin() != null && Modifier.isAbstract(bean.getOrigin().getModifiers())) ? "abstract" : "";
             final String declarationType = bean.isClass() ? "class" : "interface";
+            final String modifiers = (abstractModifier.length() > 0 && bean.isClass()) ? abstractModifier + " " + declarationType : declarationType;
             final String typeParameters = bean.getTypeParameters().isEmpty() ? "" : "<" + Utils.join(bean.getTypeParameters(), ", ")+ ">";
             final List<TsType> extendsList = bean.getExtendsList();
-            final List<TsType> implementsList = bean.getImplementsList();
             final String extendsClause = extendsList.isEmpty() ? "" : " extends " + Utils.join(extendsList, ", ");
             final String implementsClause = implementsList.isEmpty() ? "" : " implements " + Utils.join(implementsList, ", ");
-            writeIndentedLine(exportKeyword, declarationType + " " + bean.getName() + typeParameters + extendsClause + implementsClause + " {");
+            writeIndentedLine(exportKeyword, modifiers + " " + bean.getName() + typeParameters + extendsClause + implementsClause + " {");
             indent++;
             for (TsPropertyModel property : bean.getProperties()) {
                 emitProperty(property);
@@ -136,6 +162,12 @@ public class Emitter {
             }
             for (TsMethodModel method : bean.getMethods()) {
                 emitCallable(method);
+            }
+            if(settings.addConstructor && bean.isClass() && abstractModifier.length() == 0) {
+                emitConstructor(bean);
+            }
+            if(bean.getOrigin() != null && bean.getOrigin().isAnnotationPresent(MadaketResource.class)) {
+                emitResourcePath(bean);
             }
             indent--;
             writeIndentedLine("}");
@@ -198,6 +230,42 @@ public class Emitter {
         }
     }
 
+    private void emitConstructor(TsBeanModel bean) {
+        writeNewLine();
+        writeIndentedLine("constructor(values: Object = {}) {");
+        indent++;
+        if(bean.getExtendsList().size() > 0) {
+            writeIndentedLine("super();");
+        }
+        writeIndentedLine("Object.assign(this, values);");
+        emitInitializersIfNeeded(bean);
+        indent--;
+        writeIndentedLine("}");
+    }
+
+    private void emitInitializersIfNeeded(TsBeanModel bean) {
+        for (TsPropertyModel property : bean.getProperties()) {
+            if(StringUtils.equals(property.getTsType().format(settings), "Date")) {
+                writeIndentedLine("this." + property.getName()
+                        + " = new " + property.getTsType().format(settings) + "(this." + property.getName() + ");");
+            }
+        }
+    }
+
+    private void emitResourcePath(TsBeanModel bean) {
+        if(bean.getOrigin() != null && bean.getOrigin().getAnnotation(MadaketResource.class) != null) {
+            String path = bean.getOrigin().getAnnotation(MadaketResource.class).value();
+            if(path != null && path.length() > 0) {
+                writeNewLine();
+                writeIndentedLine("public getResourceEndpoint(): string {");
+                indent++;
+                writeIndentedLine("return '"+ path + "';");
+                indent--;
+                writeIndentedLine("}");
+            }
+        }
+    }
+
     private void emitStatements(List<TsStatement> statements) {
         for (TsStatement statement : statements) {
             if (statement instanceof TsReturnStatement) {
@@ -229,7 +297,7 @@ public class Emitter {
         for (TsEnumModel<?> enumModel : enums) {
             writeNewLine();
             emitComments(enumModel.getComments());
-            writeIndentedLine(exportKeyword, (declareKeyword ? "declare " : "") + "const enum " + enumModel.getName() + " {");
+            writeIndentedLine(exportKeyword, (declareKeyword ? "declare " : "") + "enum " + enumModel.getName() + " {");
             indent++;
             for (EnumMemberModel<?> member : enumModel.getMembers()) {
                 emitComments(member.getComments());

@@ -17,7 +17,7 @@ public class ClassesTest {
     @Test
     public void testClass() {
         testOutput(A.class,
-                "class A {\n" +
+                "abstract class A {\n" +
                 "    a: string;\n" +
                 "}"
         );
@@ -27,11 +27,11 @@ public class ClassesTest {
     public void testInheritedClass() {
         // A and B order is important
         testOutput(B.class,
-                "class A {\n" +
+                "abstract class A {\n" +
                 "    a: string;\n" +
                 "}\n" +
                 "\n" +
-                "class B extends A {\n" +
+                "abstract class B extends A {\n" +
                 "    b: string;\n" +
                 "}"
         );
@@ -40,7 +40,7 @@ public class ClassesTest {
     @Test
     public void testClassImplementsInterface() {
         testOutput(E.class,
-                "class E implements D {\n" +
+                "abstract class E implements D {\n" +
                 "    c: string;\n" +
                 "    d: string;\n" +
                 "    e: string;\n" +
@@ -60,13 +60,13 @@ public class ClassesTest {
     public void testComplexHierarchy() {
         // Q3 and Q5 order is important
         testOutput(Q5.class,
-                "class Q3 implements Q2 {\n" +
+                "abstract class Q3 implements Q2 {\n" +
                 "    q1: string;\n" +
                 "    q2: string;\n" +
                 "    q3: string;\n" +
                 "}\n" +
                 "\n" +
-                "class Q5 extends Q3 implements Q2, Q4 {\n" +
+                "abstract class Q5 extends Q3 implements Q2, Q4 {\n" +
                 "    q4: string;\n" +
                 "    q5: string;\n" +
                 "}\n" +

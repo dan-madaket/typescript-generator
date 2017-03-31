@@ -8,6 +8,7 @@ import cz.habarta.typescript.generator.compiler.EnumMemberModel;
 import cz.habarta.typescript.generator.util.Utils;
 
 import com.madakethealth.cred.support.MadaketResource;
+
 import javax.ws.rs.Path;
 import java.io.*;
 import java.lang.reflect.Modifier;
@@ -92,7 +93,7 @@ public class Emitter {
             if (settings.outputKind == TypeScriptOutputKind.module) {
                 prefix = "export ";
             }
-            writeIndentedLine(prefix +  "namespace " + settings.namespace + " {");
+            writeIndentedLine(prefix + "namespace " + settings.namespace + " {");
             indent++;
             final boolean exportElements = settings.outputFileType == TypeScriptFileType.implementationFile;
             emitElements(model, exportElements, false);
@@ -138,17 +139,17 @@ public class Emitter {
             emitComments(bean.getComments());
 
             List<String> implementsList = new ArrayList<String>();
-            for(TsType implementEntry: bean.getImplementsList()) {
+            for (TsType implementEntry : bean.getImplementsList()) {
                 implementsList.add(implementEntry + "");
             }
-            if(bean.getOrigin() != null && bean.getOrigin().isAnnotationPresent(MadaketResource.class)) {
+            if (bean.getOrigin() != null && bean.getOrigin().isAnnotationPresent(MadaketResource.class)) {
                 implementsList.add(MadaketResource.class.getSimpleName());
             }
 
             final String abstractModifier = (bean.getOrigin() != null && Modifier.isAbstract(bean.getOrigin().getModifiers())) ? "abstract" : "";
             final String declarationType = bean.isClass() ? "class" : "interface";
             final String modifiers = (abstractModifier.length() > 0 && bean.isClass()) ? abstractModifier + " " + declarationType : declarationType;
-            final String typeParameters = bean.getTypeParameters().isEmpty() ? "" : "<" + Utils.join(bean.getTypeParameters(), ", ")+ ">";
+            final String typeParameters = bean.getTypeParameters().isEmpty() ? "" : "<" + Utils.join(bean.getTypeParameters(), ", ") + ">";
             final List<TsType> extendsList = bean.getExtendsList();
             final String extendsClause = extendsList.isEmpty() ? "" : " extends " + Utils.join(extendsList, ", ");
             final String implementsClause = implementsList.isEmpty() ? "" : " implements " + Utils.join(implementsList, ", ");
@@ -163,10 +164,10 @@ public class Emitter {
             for (TsMethodModel method : bean.getMethods()) {
                 emitCallable(method);
             }
-            if(settings.addConstructor && bean.isClass() && abstractModifier.length() == 0) {
-                emitConstructor(bean);
+            if (settings.addConstructor && bean.isClass() && abstractModifier.length() == 0) {
+                emitConstructor(bean, model);
             }
-            if(bean.getOrigin() != null && bean.getOrigin().isAnnotationPresent(MadaketResource.class)) {
+            if (bean.getOrigin() != null && bean.getOrigin().isAnnotationPresent(MadaketResource.class)) {
                 emitResourcePath(bean);
             }
             indent--;
@@ -230,36 +231,111 @@ public class Emitter {
         }
     }
 
-    private void emitConstructor(TsBeanModel bean) {
+    private void emitConstructor(TsBeanModel bean, TsModel model) {
         writeNewLine();
         writeIndentedLine("constructor(values: Object = {}) {");
         indent++;
-        if(bean.getExtendsList().size() > 0) {
+        if (bean.getExtendsList().size() > 0) {
             writeIndentedLine("super();");
         }
         writeIndentedLine("Object.assign(this, values);");
-        emitInitializersIfNeeded(bean);
+        emitInitializersIfNeeded(bean, model);
         indent--;
         writeIndentedLine("}");
     }
 
-    private void emitInitializersIfNeeded(TsBeanModel bean) {
+    private void emitInitializersIfNeeded(TsBeanModel bean, TsModel model) {
+        ArrayList<TsEnumModel<?>> enums = settings.mapEnum == EnumMapping.asNumberBasedEnum && !settings.areDefaultStringEnumsOverriddenByExtension()
+                ? new ArrayList<>(model.getEnums())
+                : new ArrayList<TsEnumModel<?>>(model.getEnums(EnumKind.NumberBased));
         for (TsPropertyModel property : bean.getProperties()) {
-            if(StringUtils.equals(property.getTsType().format(settings), "Date")) {
+            String type = property.getTsType().format(settings);
+
+            if (StringUtils.equals(type, "Date")) {
                 writeIndentedLine("this." + property.getName()
-                        + " = new " + property.getTsType().format(settings) + "(this." + property.getName() + ");");
+                        + " = this." + property.getName()
+                        + " ? new " + type
+                        + "(this." + property.getName() + ") : undefined");
             }
+//
+//            if (propertyNeedsConstructor(type, enums)) {
+//                writeIndentedLine("this." + property.getName()
+//                        + " = this." + property.getName()
+//                        + " ? new " + type
+//                        + "(this." + property.getName() + ") : new "
+//                        + property.getTsType().format(settings) + "();");
+//            }
+
+//            else if (propertyNeedsArrayConstructor(type, enums)) {
+//                writeIndentedLine("this." + property.getName()
+//                        + " = this." + property.getName()
+//                        + " ? this." + property.getName() + " : [];");
+//            } else if (propertyNeedsObjectArrayConstructor(type)) {
+//                writeIndentedLine("this." + property.getName()
+//                        + " = this." + property.getName()
+//                        + " ? this." + property.getName()
+//                        + ".map(e => new " + type.substring(0, type.length() - 2) + "(e)) : [];");
+//            }
         }
     }
 
+    private boolean propertyNeedsConstructor(String type, ArrayList<TsEnumModel<?>> enums) {
+        if (StringUtils.equals(type, "boolean")) {
+            return false;
+        }
+        if (StringUtils.equals(type, "string")) {
+            return false;
+        }
+        if (StringUtils.equals(type, "number")) {
+            return false;
+        }
+        if (StringUtils.contains(type, "[]")) {
+            return false;
+        }
+        if (StringUtils.equals(type, "Date")) {
+            return true;
+        }
+        for (TsEnumModel<?> enumModel : enums) {
+            if (StringUtils.equals(type, enumModel.getName() + "")) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private boolean propertyNeedsArrayConstructor(String type, ArrayList<TsEnumModel<?>> enums) {
+        if (StringUtils.equals(type, "boolean[]")) {
+            return true;
+        }
+        if (StringUtils.equals(type, "string[]")) {
+            return true;
+        }
+        if (StringUtils.equals(type, "number[]")) {
+            return true;
+        }
+        for (TsEnumModel<?> enumModel : enums) {
+            if (StringUtils.equals(type, enumModel.getName() + "[]")) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean propertyNeedsObjectArrayConstructor(String type) {
+        if (StringUtils.contains(type, "[]")) {
+            return true;
+        }
+        return false;
+    }
+
     private void emitResourcePath(TsBeanModel bean) {
-        if(bean.getOrigin() != null && bean.getOrigin().getAnnotation(MadaketResource.class) != null) {
+        if (bean.getOrigin() != null && bean.getOrigin().getAnnotation(MadaketResource.class) != null) {
             String path = bean.getOrigin().getAnnotation(MadaketResource.class).value();
-            if(path != null && path.length() > 0) {
+            if (path != null && path.length() > 0) {
                 writeNewLine();
                 writeIndentedLine("public getResourceEndpoint(): string {");
                 indent++;
-                writeIndentedLine("return '"+ path + "';");
+                writeIndentedLine("return '/" + path + "';");
                 indent--;
                 writeIndentedLine("}");
             }
